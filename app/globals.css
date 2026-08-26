@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-grid: #0a0c10;
+  --color-bg-panel: #12151c;
+  --color-route-blue: #3b82f6;
+  --color-signal-cyan: #00e5c7;
+  --color-bus-yellow: #ffc93c;
+  --color-text-primary: #f5f6f8;
+  --color-text-muted: #8a93a3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #0a0c10;
+  color: #f5f6f8;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0a0c10;
+  color: #f5f6f8;
+  overflow-x: hidden;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: #00e5c7;
+  color: #0a0c10;
+}
+
+/* Custom Webkit Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0c10;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e2430;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
+
+/* Glassmorphic Panel Helper */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
