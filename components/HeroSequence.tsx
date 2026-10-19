@@ -186,7 +186,7 @@ export function HeroSequence() {
             </div>
             <div className="flex flex-col">
               <span className="font-heading font-bold text-xl tracking-tight text-text-primary">
-                Route<span className="text-signal-cyan">Wise</span>
+                Route<span className="text-signal-cyan">Craft</span>
               </span>
               <span className="text-[9px] font-mono tracking-widest text-text-muted uppercase hidden sm:block">
                 District Fleet OS
@@ -292,7 +292,7 @@ export function HeroSequence() {
               href="#demo"
               className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-route-blue hover:bg-blue-600 rounded-full transition-all shadow-glow-blue hover:scale-105 active:scale-95"
             >
-              Sign Up Now
+              Sign Up
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -417,7 +417,7 @@ export function HeroSequence() {
                   <Compass className="w-3.5 h-3.5" /> Chapter 02 · Ridership
                 </div>
 
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-heading font-bold text-text-primary tracking-tight">
+                <h2 className="text-3xl sm:text-4xl md:text-5.5xl  font-heading font-bold text-text-primary tracking-tight">
                   Real-time student ridership sync
                 </h2>
               </div>
