@@ -1,58 +1,139 @@
+
 'use client';
 
-import React, { useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import React, { useMemo, useState } from 'react';
+import {
+  useForm,
+  useFieldArray,
+  type FieldPath,
+} from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  Send,
-  CheckCircle2,
   AlertCircle,
-  MapPin,
-  Bus,
-  Sparkles,
-  ShieldCheck,
-  FileSpreadsheet,
-  Sliders,
-  Users,
-  Plus,
-  Trash2,
-  ArrowRight,
   ArrowLeft,
+  ArrowRight,
+  Bus,
+  Check,
+  CheckCircle2,
   Cpu,
-  Zap,
-  Gauge,
+  FileSpreadsheet,
   Fuel,
+  Gauge,
+  MapPin,
+  Plus,
+  Send,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+  Users,
+  Zap,
 } from 'lucide-react';
 
 const wizardSchema = z.object({
-  locationInput: z.string().min(3, 'Enter a valid Plus Code or Lat/Long coordinates'),
-  fleetSizeCount: z.coerce.number().min(1, 'At least 1 bus is required').max(200, 'Max 200 buses for sandbox'),
-  buses: z.array(
-    z.object({
-      id: z.string(),
-      label: z.string().min(1, 'Bus identifier required'),
-      capacity: z.coerce.number().min(5, 'Min capacity 5').max(120, 'Max capacity 120'),
-    })
-  ),
+  locationInput: z
+    .string()
+    .trim()
+    .min(3, 'Enter a valid Plus Code or latitude/longitude.'),
+
+  fleetSizeCount: z.coerce
+    .number()
+    .int('Enter a whole number.')
+    .min(1, 'At least one bus is required.')
+    .max(200, 'Maximum 200 buses.'),
+
+  buses: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string().trim().min(1, 'Enter a bus name or ID.'),
+        capacity: z.coerce
+          .number()
+          .int('Capacity must be a whole number.')
+          .min(5, 'Minimum capacity is 5 seats.')
+          .max(120, 'Maximum capacity is 120 seats.'),
+      })
+    )
+    .min(1, 'Add at least one bus.')
+    .max(200, 'Maximum 200 buses.'),
+
   dataSourceType: z.enum(['preset', 'csv']),
-  presetStudentCount: z.coerce.number().min(20).max(500),
-  specificStudents: z.array(
-    z.object({
-      name: z.string(),
-      plusCode: z.string(),
-    })
-  ).optional(),
+
+  presetStudentCount: z.coerce
+    .number()
+    .min(20, 'Minimum 20 students.')
+    .max(500, 'Maximum 500 students.'),
+
+  specificStudents: z
+    .array(
+      z.object({
+        name: z.string(),
+        plusCode: z.string(),
+      })
+    )
+    .optional(),
+
   uploadedFile: z.any().optional(),
+
   optimizationGoal: z.enum(['fuel', 'time', 'capacity']),
 });
 
 type WizardFormData = z.infer<typeof wizardSchema>;
 
+const inputClass =
+  'w-full min-w-0 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 text-sm text-text-primary placeholder:text-text-muted/40 transition-colors focus:border-signal-cyan focus:outline-none focus:ring-1 focus:ring-signal-cyan disabled:opacity-50';
+
+const labelClass =
+  'flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-text-muted';
+
+const panelClass =
+  'rounded-2xl border border-white/10 bg-white/[0.02]';
+
+const createBus = (index: number) => ({
+  id: `bus-${Date.now()}-${index}`,
+  label: `Bus Unit ${index + 1}`,
+  capacity: index % 2 === 0 ? 40 : 30,
+});
+
+const objectives = [
+  {
+    id: 'fuel',
+    title: 'Minimum Fuel',
+    subtitle: 'Reduce estimated fuel usage',
+    icon: Fuel,
+    description:
+      'Prioritize lower fuel consumption using the routing model.',
+    selected:
+      'border-bus-yellow bg-bus-yellow/10 text-bus-yellow ring-1 ring-bus-yellow/50',
+  },
+  {
+    id: 'time',
+    title: 'Minimum Time',
+    subtitle: 'Reduce travel time',
+    icon: Zap,
+    description:
+      'Prioritize shorter estimated travel times across routes.',
+    selected:
+      'border-signal-cyan bg-signal-cyan/10 text-signal-cyan ring-1 ring-signal-cyan/50',
+  },
+  {
+    id: 'capacity',
+    title: 'Seat Utilization',
+    subtitle: 'Use seats efficiently',
+    icon: Gauge,
+    description:
+      'Prioritize efficient use of bus capacity while respecting seat limits.',
+    selected:
+      'border-route-blue bg-route-blue/10 text-route-blue ring-1 ring-route-blue/50',
+  },
+] as const;
+
 export function ContactForm() {
   const [step, setStep] = useState<1 | 2>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const {
     register,
@@ -60,9 +141,15 @@ export function ContactForm() {
     control,
     watch,
     setValue,
-    formState: { errors },
+    trigger,
+    getValues,
+    setError,
+    clearErrors,
+    reset,
+    formState: { errors, isDirty },
   } = useForm<WizardFormData>({
     resolver: zodResolver(wizardSchema),
+    mode: 'onTouched',
     defaultValues: {
       locationInput: '7JVM+W4 Amravati, Maharashtra',
       fleetSizeCount: 3,
@@ -78,407 +165,941 @@ export function ContactForm() {
     },
   });
 
-  const { fields: busFields, replace: replaceBuses } = useFieldArray({
+  const {
+    fields: busFields,
+    append: appendBus,
+    remove: removeBus,
+  } = useFieldArray({
     control,
     name: 'buses',
   });
 
-  const { fields: studentFields, append: appendStudent, remove: removeStudent } = useFieldArray({
+  const {
+    fields: studentFields,
+    append: appendStudent,
+    remove: removeStudent,
+  } = useFieldArray({
     control,
     name: 'specificStudents',
   });
 
   const dataSourceType = watch('dataSourceType');
   const optimizationGoal = watch('optimizationGoal');
+  const buses = watch('buses');
+  const fleetCount = watch('fleetSizeCount');
 
-  const handleFleetCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value) || 1;
-    setValue('fleetSizeCount', val);
-    const newBuses = Array.from({ length: val }, (_, index) => ({
-      id: String(index + 1),
-      label: `Bus Unit #${index + 1}`,
-      capacity: index % 2 === 0 ? 40 : 30,
-    }));
-    replaceBuses(newBuses);
+  const totalSeats = useMemo(
+    () =>
+      (buses ?? []).reduce(
+        (total, bus) => total + (Number(bus.capacity) || 0),
+        0
+      ),
+    [buses]
+  );
+
+  // Keep the displayed fleet count synchronized with bus rows.
+  const syncFleetCount = (count: number) => {
+    if (!Number.isInteger(count) || count < 1 || count > 200) return;
+
+    const currentCount = getValues('buses').length;
+
+    if (count > currentCount) {
+      for (let i = currentCount; i < count; i++) {
+        appendBus(createBus(i));
+      }
+    } else if (count < currentCount) {
+      for (let i = currentCount - 1; i >= count; i--) {
+        removeBus(i);
+      }
+    }
+
+    setValue('fleetSizeCount', count, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const handleFleetCountBlur = (
+    e: React.FocusEvent<HTMLInputElement>
+  ) => {
+    const count = Number(e.target.value);
+
+    if (Number.isInteger(count) && count >= 1 && count <= 200) {
+      syncFleetCount(count);
+    }
+  };
+
+  const addBus = () => {
+    if (busFields.length >= 200) return;
+
+    const index = busFields.length;
+
+    appendBus(createBus(index));
+
+    setValue('fleetSizeCount', index + 1, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const deleteBus = (index: number) => {
+    if (busFields.length <= 1) return;
+
+    removeBus(index);
+
+    setValue('fleetSizeCount', busFields.length - 1, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const goToStepTwo = async () => {
+    const valid = await trigger([
+      'locationInput',
+      'fleetSizeCount',
+      'buses',
+    ]);
+
+    if (!valid) return;
+
+    if (getValues('buses').length !== Number(getValues('fleetSizeCount'))) {
+      setError('fleetSizeCount', {
+        type: 'manual',
+        message: 'Fleet count must match the number of configured buses.',
+      });
+      return;
+    }
+
+    setStep(2);
+    setSubmitError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const onSubmit = async (data: WizardFormData) => {
+    setSubmitError('');
+    clearErrors();
+
+    if (data.dataSourceType === 'csv') {
+      const file = data.uploadedFile?.[0] as File | undefined;
+
+      if (!file) {
+        setError('uploadedFile', {
+          type: 'manual',
+          message: 'Select a CSV or Excel roster file.',
+        });
+        return;
+      }
+
+      const validExtension = /\.(csv|xlsx|xls)$/i.test(file.name);
+
+      if (!validExtension) {
+        setError('uploadedFile', {
+          type: 'manual',
+          message: 'Upload a CSV, XLSX, or XLS file.',
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log('Optimized Routing Simulation Payload:', data);
-    setIsSubmitting(false);
-    setIsCompleted(true);
+
+    try {
+      /*
+       * Demo behavior: replace this simulation with your real API call.
+       * Example:
+       * const response = await fetch('/api/optimize-routes', {
+       *   method: 'POST',
+       *   body: formData,
+       * });
+       *
+       * For Excel/CSV uploads, use FormData and append the actual File.
+       * Do not JSON.stringify the File object.
+       */
+
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      console.log('Demo optimization configuration:', {
+        ...data,
+        uploadedFile:
+          data.dataSourceType === 'csv'
+            ? data.uploadedFile?.[0]?.name
+            : undefined,
+      });
+
+      setIsCompleted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      setSubmitError(
+        'Unable to complete the request. Please check your connection and try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  return (
-    <section id="demo" className="relative w-full bg-bg-grid py-24 px-4 sm:px-6 lg:px-8 border-t border-white/10 overflow-hidden select-none">
-      {/* Background Radial Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-route-blue/15 via-signal-cyan/15 to-transparent rounded-full blur-[140px] pointer-events-none" />
+  const resetWizard = () => {
+    reset();
+    setStep(1);
+    setIsCompleted(false);
+    setIsSubmitting(false);
+    setSubmitError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-      <div className="max-w-3xl mx-auto relative z-10 space-y-8">
-        
-        {/* Header Title */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-signal-cyan/10 border border-signal-cyan/20 text-signal-cyan text-[11px] font-mono tracking-widest uppercase shadow-glow-cyan/20">
-            <Sparkles className="w-3.5 h-3.5" /> Spatial Solver Sandbox
+  const ErrorMessage = ({ message }: { message?: string }) =>
+    message ? (
+      <p role="alert" className="mt-1.5 flex items-start gap-1.5 text-xs text-red-400">
+        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>{message}</span>
+      </p>
+    ) : null;
+
+  return (
+    <section
+      id="demo"
+      className="relative w-full overflow-hidden border-t border-white/10 bg-bg-grid px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
+    >
+      {/* Preserve the existing site theme and background glow. */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-route-blue/15 via-signal-cyan/15 to-transparent blur-[140px]" />
+
+      <div className="relative z-10 mx-auto max-w-3xl space-y-7">
+        {/* Header */}
+        <header className="space-y-3 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-signal-cyan/20 bg-signal-cyan/10 px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-signal-cyan">
+            <Sparkles className="h-3.5 w-3.5" />
+            Spatial Solver Sandbox
           </div>
 
-          <h2 className="text-3xl sm:text-5xl font-heading font-extrabold text-text-primary tracking-tight leading-tight">
-            Run Live Route Optimization
+          <h2 className="font-heading text-3xl font-extrabold leading-tight tracking-tight text-text-primary sm:text-4xl">
+            Configure Your Fleet
           </h2>
 
-          <p className="text-sm sm:text-base text-text-muted max-w-xl mx-auto leading-relaxed">
-            Configure depot coordinates, set fleet capacities, import student rosters, and launch Google OR-Tools spatial algorithms.
+          <p className="mx-auto max-w-xl text-sm leading-relaxed text-text-muted sm:text-base">
+            Set up your depot, configure bus capacities, import student
+            locations, and choose your route optimization objective.
           </p>
-        </div>
+        </header>
 
-        {/* Main Card */}
-        <div className="p-6 sm:p-10 rounded-3xl bg-bg-panel/85 border border-white/15 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+        {/* Main panel */}
+        <div className="overflow-hidden rounded-2xl border border-white/15 bg-bg-panel/90 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:rounded-3xl">
           {isCompleted ? (
-            /* Execution Complete Screen */
-            <div className="py-10 text-center space-y-6 animate-in fade-in zoom-in-95 duration-300">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-signal-cyan/20 to-route-blue/20 border border-signal-cyan/40 text-signal-cyan flex items-center justify-center mx-auto shadow-glow-cyan">
-                <Cpu className="w-10 h-10 animate-pulse" />
+            <div className="space-y-6 px-5 py-10 text-center sm:px-10">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-signal-cyan/40 bg-signal-cyan/10 text-signal-cyan">
+                <CheckCircle2 className="h-9 w-9" />
               </div>
+
               <div className="space-y-2">
-                <h3 className="text-2xl font-heading font-bold text-text-primary">
-                  Optimization Complete!
+                <h3 className="font-heading text-2xl font-bold text-text-primary">
+                  Demo Configuration Complete
                 </h3>
-                <p className="text-xs sm:text-sm text-text-muted max-w-md mx-auto">
-                  Spatial DBSCAN clustering and turn-by-turn trajectory resolution finished in 1.42 seconds.
+                <p className="mx-auto max-w-md text-sm leading-relaxed text-text-muted">
+                  Your configuration passed the demo submission flow. Connect
+                  your routing API to calculate actual routes and solver metrics.
                 </p>
               </div>
 
-              {/* Telemetry Summary Box */}
-              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 max-w-md mx-auto text-left space-y-2 text-xs font-mono text-text-muted">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2 text-signal-cyan font-bold">
-                  <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> SOLVER METRICS</span>
-                  <span className="text-[10px] text-text-muted uppercase">Status: OK</span>
+              <div className={`${panelClass} mx-auto max-w-md space-y-3 p-4 text-left`}>
+                <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+                  <ShieldCheck className="h-4 w-4 text-signal-cyan" />
+                  <span className="text-xs font-mono font-bold text-text-primary">
+                    CONFIGURATION SUMMARY
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
-                  <div><span className="text-white/50">Mileage Reduced:</span> <strong className="text-signal-cyan">~28.4%</strong></div>
-                  <div><span className="text-white/50">Fleet Occupancy:</span> <strong className="text-text-primary">94.2%</strong></div>
-                  <div><span className="text-white/50">Algorithm:</span> <strong className="text-text-primary">OR-Tools</strong></div>
-                  <div><span className="text-white/50">Execution Time:</span> <strong className="text-text-primary">1.42s</strong></div>
-                </div>
+
+                {[
+                  ['Depot', getValues('locationInput')],
+                  ['Fleet', `${getValues('buses').length} buses`],
+                  [
+                    'Total seats',
+                    `${getValues('buses').reduce((n, bus) => n + Number(bus.capacity), 0)} seats`,
+                  ],
+                  [
+                    'Roster',
+                    getValues('dataSourceType') === 'preset'
+                      ? `${getValues('presetStudentCount')} generated students`
+                      : getValues('uploadedFile')?.[0]?.name ?? 'Uploaded file',
+                  ],
+                  ['Objective', objectives.find((o) => o.id === getValues('optimizationGoal'))?.title ?? 'Not selected'],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-start justify-between gap-4 text-xs">
+                    <span className="text-text-muted">{label}</span>
+                    <span className="max-w-[65%] break-words text-right font-medium text-text-primary">
+                      {value}
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <button
                 type="button"
-                onClick={() => {
-                  setIsCompleted(false);
-                  setStep(1);
-                }}
-                className="px-6 py-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-mono text-text-primary transition-all hover:scale-105 active:scale-95"
+                onClick={resetWizard}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm text-text-primary transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan"
               >
-                Reset & New Simulation
+                <ArrowLeft className="h-4 w-4" />
+                Start a New Configuration
               </button>
             </div>
           ) : (
-            /* Wizard Form */
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
-              
-              {/* Progress Stepper Bar */}
-              <div className="flex items-center justify-between pb-5 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-signal-cyan/20 border border-signal-cyan/40 text-signal-cyan text-xs font-mono font-bold flex items-center justify-center">
-                    {step}
-                  </span>
-                  <span className="text-xs font-mono text-text-primary font-semibold tracking-wide uppercase">
-                    {step === 1 ? 'Depot & Capacity Setup' : 'Roster Input & Objectives'}
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              noValidate
+              className="flex flex-col"
+            >
+              {/* Stepper */}
+              <div className="border-b border-white/10 px-5 py-5 sm:px-8">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
+                      Setup wizard
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-text-primary">
+                      Step {step} of 2
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-signal-cyan/20 bg-signal-cyan/10 px-2.5 py-1 text-[10px] font-mono text-signal-cyan">
+                    {step === 1 ? 'FLEET SETUP' : 'ROSTER SETUP'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 1 ? 'w-10 bg-signal-cyan shadow-glow-cyan' : 'w-3 bg-white/20'}`} />
-                  <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 2 ? 'w-10 bg-signal-cyan shadow-glow-cyan' : 'w-3 bg-white/20'}`} />
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 1, title: 'Depot & Fleet', icon: Bus },
+                    { id: 2, title: 'Roster & Objectives', icon: Users },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const active = step === item.id;
+                    const completed = step > item.id;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          if (item.id === 1) setStep(1);
+                          else if (step === 1) void goToStepTwo();
+                        }}
+                        className={`flex min-w-0 items-center gap-2.5 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan ${
+                          active
+                            ? 'border-signal-cyan/60 bg-signal-cyan/10'
+                            : completed
+                              ? 'border-signal-cyan/20 bg-white/[0.02]'
+                              : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                            active || completed
+                              ? 'bg-signal-cyan/15 text-signal-cyan'
+                              : 'bg-white/5 text-text-muted'
+                          }`}
+                        >
+                          {completed ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Icon className="h-4 w-4" />
+                          )}
+                        </span>
+
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-mono text-text-muted">
+                            STEP 0{item.id}
+                          </span>
+                          <span className="mt-0.5 block text-xs font-semibold text-text-primary">
+                            {item.title}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* STEP 1 */}
-              {step === 1 && (
-                <div className="space-y-5 animate-in fade-in duration-200">
-                  
-                  {/* Location Input */}
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono text-text-muted uppercase tracking-widest flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-signal-cyan" /> Central Depot Location (Plus Code / Lat, Long)
-                    </label>
-                    <div className="relative">
+              {/* Form body */}
+              <div className="space-y-6 px-5 py-6 sm:px-8 sm:py-7">
+                {step === 1 && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-bold text-text-primary">
+                        Depot & Fleet Configuration
+                      </h3>
+                      <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                        Define the starting depot and configure each bus in your fleet.
+                      </p>
+                    </div>
+
+                    {/* Depot */}
+                    <div className="space-y-2">
+                      <label htmlFor="locationInput" className={labelClass}>
+                        <MapPin className="h-4 w-4 text-signal-cyan" />
+                        Central depot location
+                      </label>
+
+                      <p className="text-xs text-text-muted">
+                        Enter a Plus Code or latitude, longitude coordinates.
+                      </p>
+
                       <input
-                        type="text"
+                        id="locationInput"
+                        autoComplete="off"
                         {...register('locationInput')}
                         placeholder="e.g. 7JVM+W4 or 20.9320, 77.7523"
-                        className="w-full pl-4 pr-10 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-xs sm:text-sm text-text-primary placeholder:text-text-muted/40 focus:outline-none focus:border-signal-cyan focus:ring-1 focus:ring-signal-cyan transition-all"
+                        className={inputClass}
                       />
-                      <MapPin className="w-4 h-4 text-text-muted/40 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                    {errors.locationInput && (
-                      <p className="text-[11px] text-red-400 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> {errors.locationInput.message}
-                      </p>
-                    )}
-                  </div>
 
-                  {/* Fleet Size Count */}
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono text-text-muted uppercase tracking-widest flex items-center gap-1.5">
-                      <Bus className="w-3.5 h-3.5 text-bus-yellow" /> Total Active Fleet Count
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={200}
-                      {...register('fleetSizeCount', { onChange: handleFleetCountChange })}
-                      className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-xs sm:text-sm text-text-primary focus:outline-none focus:border-bus-yellow focus:ring-1 focus:ring-bus-yellow transition-all"
-                    />
-                    {errors.fleetSizeCount && (
-                      <p className="text-[11px] text-red-400 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> {errors.fleetSizeCount.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Bus Capacities List */}
-                  <div className="space-y-2.5 pt-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-mono text-text-muted uppercase tracking-widest">
-                        Individual Bus Capacity Customization
-                      </label>
-                      <span className="text-[10px] font-mono text-signal-cyan bg-signal-cyan/10 px-2 py-0.5 rounded-full border border-signal-cyan/20">
-                        {busFields.length} Bus Units
-                      </span>
+                      <ErrorMessage message={errors.locationInput?.message} />
                     </div>
 
-                    <div className="max-h-52 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                      {busFields.map((field, index) => (
-                        <div key={field.id} className="grid grid-cols-12 gap-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/10 items-center hover:border-white/20 transition-colors">
-                          <div className="col-span-7">
-                            <input
-                              type="text"
-                              {...register(`buses.${index}.label` as const)}
-                              placeholder="Bus Name / ID"
-                              className="w-full px-3 py-1.5 rounded-lg bg-bg-panel border border-white/10 text-xs text-text-primary focus:outline-none focus:border-route-blue"
-                            />
-                          </div>
-                          <div className="col-span-5 flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              {...register(`buses.${index}.capacity` as const)}
-                              placeholder="Capacity"
-                              className="w-full px-3 py-1.5 rounded-lg bg-bg-panel border border-white/10 text-xs text-text-primary focus:outline-none focus:border-route-blue"
-                            />
-                            <span className="text-[10px] font-mono text-text-muted uppercase">seats</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Next Step Button */}
-                  <button
-                    type="button"
-                    onClick={() => setStep(2)}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-route-blue via-blue-600 to-route-blue hover:from-blue-600 hover:to-route-blue text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-glow-blue flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.98] mt-4"
-                  >
-                    Save & Continue
-                    <ArrowRight className="w-4 h-4 text-signal-cyan" />
-                  </button>
-                </div>
-              )}
-
-              {/* STEP 2 */}
-              {step === 2 && (
-                <div className="space-y-5 animate-in fade-in duration-200">
-                  
-                  {/* Data Source Selection */}
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-mono text-text-muted uppercase tracking-widest flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-signal-cyan" /> Select Roster Input Method
-                    </label>
-
+                    {/* Fleet summary */}
                     <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setValue('dataSourceType', 'preset')}
-                        className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
-                          dataSourceType === 'preset'
-                            ? 'bg-signal-cyan/10 border-signal-cyan text-signal-cyan ring-1 ring-signal-cyan shadow-glow-cyan/20'
-                            : 'bg-white/[0.02] border-white/10 text-text-muted hover:bg-white/[0.04]'
-                        }`}
-                      >
-                        <Sliders className="w-5 h-5 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-text-primary">Preset Generator</p>
-                          <p className="text-[10px] text-text-muted">Simulate student batch</p>
+                      <div className={`${panelClass} p-4`}>
+                        <div className="flex items-center gap-2 text-text-muted">
+                          <Bus className="h-4 w-4 text-bus-yellow" />
+                          <span className="text-[10px] font-mono uppercase tracking-wider">
+                            Active buses
+                          </span>
                         </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setValue('dataSourceType', 'csv')}
-                        className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
-                          dataSourceType === 'csv'
-                            ? 'bg-route-blue/10 border-route-blue text-route-blue ring-1 ring-route-blue shadow-glow-blue/20'
-                            : 'bg-white/[0.02] border-white/10 text-text-muted hover:bg-white/[0.04]'
-                        }`}
-                      >
-                        <FileSpreadsheet className="w-5 h-5 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-text-primary">CSV / Excel Upload</p>
-                          <p className="text-[10px] text-text-muted">Direct roster import</p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Preset Batch Section */}
-                  {dataSourceType === 'preset' && (
-                    <div className="space-y-3 p-4 rounded-2xl bg-white/[0.02] border border-white/10">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
-                          Random Student Batch Size
-                        </label>
-                        <select
-                          {...register('presetStudentCount')}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-bg-panel border border-white/10 text-xs text-text-primary focus:outline-none focus:border-signal-cyan"
-                        >
-                          <option value={50}>50 Students (Small District Test)</option>
-                          <option value={75}>75 Students (Standard Batch)</option>
-                          <option value={100}>100 Students (Medium Density)</option>
-                          <option value={150}>150+ Students (Heavy Cluster)</option>
-                        </select>
+                        <p className="mt-2 text-2xl font-bold tabular-nums text-text-primary">
+                          {busFields.length}
+                        </p>
+                        <p className="mt-1 text-[10px] text-text-muted">
+                          Configured units
+                        </p>
                       </div>
 
-                      {/* Specific Students Manual Add */}
-                      <div className="space-y-2 pt-2 border-t border-white/10">
-                        <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-mono text-text-muted uppercase">
-                            Add Custom Student (Optional)
+                      <div className={`${panelClass} p-4`}>
+                        <div className="flex items-center gap-2 text-text-muted">
+                          <Users className="h-4 w-4 text-signal-cyan" />
+                          <span className="text-[10px] font-mono uppercase tracking-wider">
+                            Total seats
+                          </span>
+                        </div>
+                        <p className="mt-2 text-2xl font-bold tabular-nums text-signal-cyan">
+                          {totalSeats.toLocaleString()}
+                        </p>
+                        <p className="mt-1 text-[10px] text-text-muted">
+                          Across all buses
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bus editor */}
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div className="space-y-1.5">
+                          <label htmlFor="fleetSizeCount" className={labelClass}>
+                            Fleet size
                           </label>
-                          <button
-                            type="button"
-                            onClick={() => appendStudent({ name: '', plusCode: '' })}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-[10px] font-mono text-signal-cyan border border-white/10"
-                          >
-                            <Plus className="w-3 h-3" /> Add
-                          </button>
+                          <input
+                            id="fleetSizeCount"
+                            type="number"
+                            min={1}
+                            max={200}
+                            {...register('fleetSizeCount', {
+                              onBlur: handleFleetCountBlur,
+                            })}
+                            className={`${inputClass} max-w-32`}
+                          />
                         </div>
 
-                        {studentFields.map((field, idx) => (
-                          <div key={field.id} className="flex gap-2 items-center">
-                            <input
-                              type="text"
-                              {...register(`specificStudents.${idx}.name` as const)}
-                              placeholder="Name"
-                              className="w-1/2 px-2.5 py-1.5 rounded-lg bg-bg-panel border border-white/10 text-xs text-text-primary"
-                            />
-                            <input
-                              type="text"
-                              {...register(`specificStudents.${idx}.plusCode` as const)}
-                              placeholder="Plus Code"
-                              className="w-1/2 px-2.5 py-1.5 rounded-lg bg-bg-panel border border-white/10 text-xs text-text-primary"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeStudent(idx)}
-                              className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                        <button
+                          type="button"
+                          onClick={addBus}
+                          disabled={busFields.length >= 200}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-signal-cyan/30 bg-signal-cyan/10 px-3 py-2.5 text-xs font-semibold text-signal-cyan transition hover:bg-signal-cyan/15 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add bus
+                        </button>
+                      </div>
+
+                      <ErrorMessage message={errors.fleetSizeCount?.message} />
+                      <ErrorMessage message={errors.buses?.message} />
+
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={labelClass}>Bus configuration</span>
+                        <span className="text-[10px] font-mono text-text-muted">
+                          {busFields.length} / 200 units
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {busFields.map((field, index) => (
+                          <div
+                            key={field.id}
+                            className="rounded-xl border border-white/10 bg-white/[0.02] p-3 transition-colors hover:border-white/20"
+                          >
+                            <div className="mb-2.5 flex items-center justify-between gap-2">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-[10px] font-mono text-signal-cyan">
+                                  {String(index + 1).padStart(2, '0')}
+                                </span>
+                                <span className="truncate text-xs font-semibold text-text-primary">
+                                  Bus unit {index + 1}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteBus(index)}
+                                disabled={busFields.length <= 1}
+                                aria-label={`Remove bus ${index + 1}`}
+                                title="Remove bus"
+                                className="rounded-lg p-1.5 text-text-muted transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-[minmax(0,1fr)_100px] gap-2 sm:grid-cols-[minmax(0,1fr)_130px]">
+                              <div className="min-w-0">
+                                <label
+                                  htmlFor={`bus-label-${index}`}
+                                  className="mb-1 block text-[10px] text-text-muted"
+                                >
+                                  Bus name / ID
+                                </label>
+                                <input
+                                  id={`bus-label-${index}`}
+                                  {...register(`buses.${index}.label` as const)}
+                                  placeholder="e.g. Bus Alpha"
+                                  className="w-full min-w-0 rounded-lg border border-white/10 bg-bg-panel px-2.5 py-2 text-xs text-text-primary focus:border-route-blue focus:outline-none focus:ring-1 focus:ring-route-blue"
+                                />
+                                <ErrorMessage
+                                  message={errors.buses?.[index]?.label?.message}
+                                />
+                              </div>
+
+                              <div>
+                                <label
+                                  htmlFor={`bus-capacity-${index}`}
+                                  className="mb-1 block text-[10px] text-text-muted"
+                                >
+                                  Seats (5–120)
+                                </label>
+                                <input
+                                  id={`bus-capacity-${index}`}
+                                  type="number"
+                                  min={5}
+                                  max={120}
+                                  {...register(`buses.${index}.capacity` as const)}
+                                  className="w-full min-w-0 rounded-lg border border-white/10 bg-bg-panel px-2.5 py-2 text-xs text-text-primary focus:border-route-blue focus:outline-none focus:ring-1 focus:ring-route-blue"
+                                />
+                                <ErrorMessage
+                                  message={errors.buses?.[index]?.capacity?.message}
+                                />
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
 
-                  {/* CSV Upload Section */}
-                  {dataSourceType === 'csv' && (
-                    <div className="space-y-2 p-6 rounded-2xl bg-white/[0.02] border border-dashed border-white/20 text-center">
-                      <FileSpreadsheet className="w-8 h-8 text-route-blue mx-auto" />
-                      <p className="text-xs font-semibold text-text-primary">Upload Roster File</p>
-                      <p className="text-[10px] text-text-muted">Columns required: <code className="text-signal-cyan">student_name</code>, <code className="text-signal-cyan">home_plus_code</code></p>
-                      <input
-                        type="file"
-                        accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-                        {...register('uploadedFile')}
-                        className="block w-full text-xs text-text-muted file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-mono file:bg-route-blue/20 file:text-route-blue hover:file:bg-route-blue/30 cursor-pointer pt-2"
-                      />
-                    </div>
-                  )}
-
-                  {/* Objective Optimization Goal Cards */}
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-mono text-text-muted uppercase tracking-widest flex items-center gap-1.5">
-                      <Cpu className="w-3.5 h-3.5 text-bus-yellow" /> Optimization Objective
-                    </label>
-
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <label className={`p-3 rounded-xl border text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                        optimizationGoal === 'fuel' ? 'bg-bus-yellow/10 border-bus-yellow text-bus-yellow ring-1 ring-bus-yellow' : 'bg-white/[0.02] border-white/10 text-text-muted hover:bg-white/[0.04]'
-                      }`}>
-                        <input type="radio" value="fuel" {...register('optimizationGoal')} className="sr-only" />
-                        <Fuel className="w-4 h-4" />
-                        <span className="text-xs font-bold text-text-primary">Min Fuel</span>
-                        <span className="text-[9px] opacity-75">Shortest Distance</span>
-                      </label>
-
-                      <label className={`p-3 rounded-xl border text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                        optimizationGoal === 'time' ? 'bg-signal-cyan/10 border-signal-cyan text-signal-cyan ring-1 ring-signal-cyan' : 'bg-white/[0.02] border-white/10 text-text-muted hover:bg-white/[0.04]'
-                      }`}>
-                        <input type="radio" value="time" {...register('optimizationGoal')} className="sr-only" />
-                        <Zap className="w-4 h-4" />
-                        <span className="text-xs font-bold text-text-primary">Min Time</span>
-                        <span className="text-[9px] opacity-75">Fastest Bell Sync</span>
-                      </label>
-
-                      <label className={`p-3 rounded-xl border text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
-                        optimizationGoal === 'capacity' ? 'bg-route-blue/10 border-route-blue text-route-blue ring-1 ring-route-blue' : 'bg-white/[0.02] border-white/10 text-text-muted hover:bg-white/[0.04]'
-                      }`}>
-                        <input type="radio" value="capacity" {...register('optimizationGoal')} className="sr-only" />
-                        <Gauge className="w-4 h-4" />
-                        <span className="text-xs font-bold text-text-primary">Max Capacity</span>
-                        <span className="text-[9px] opacity-75">Full Utilization</span>
-                      </label>
+                      <p className="text-[10px] leading-relaxed text-text-muted">
+                        Changes to bus count preserve existing bus details where possible.
+                        Each bus must have a unique identifier in your final implementation.
+                      </p>
                     </div>
                   </div>
+                )}
 
-                  {/* Submit Action Controls */}
-                  <div className="flex gap-3 pt-3">
+                {step === 2 && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-bold text-text-primary">
+                        Student Roster & Routing Goals
+                      </h3>
+                      <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                        Select your student data source and define what the routing engine should prioritize.
+                      </p>
+                    </div>
+
+                    {/* Data source */}
+                    <div className="space-y-2.5">
+                      <label className={labelClass}>
+                        <Users className="h-4 w-4 text-signal-cyan" />
+                        Student data source
+                      </label>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {[
+                          {
+                            id: 'preset',
+                            title: 'Preset generator',
+                            subtitle: 'Generate sample students',
+                            description: 'Best for testing the optimizer.',
+                            icon: SlidersHorizontal,
+                          },
+                          {
+                            id: 'csv',
+                            title: 'CSV / Excel upload',
+                            subtitle: 'Import an existing roster',
+                            description: 'Best for real student data.',
+                            icon: FileSpreadsheet,
+                          },
+                        ].map((option) => {
+                          const Icon = option.icon;
+                          const selected = dataSourceType === option.id;
+
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() => {
+                                setValue(
+                                  'dataSourceType',
+                                  option.id as 'preset' | 'csv',
+                                  { shouldDirty: true, shouldValidate: true }
+                                );
+                                clearErrors('uploadedFile');
+                              }}
+                              className={`flex items-start gap-3 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan ${
+                                selected
+                                  ? 'border-signal-cyan bg-signal-cyan/10 ring-1 ring-signal-cyan/40'
+                                  : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                              }`}
+                            >
+                              <span
+                                className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                  selected
+                                    ? 'bg-signal-cyan/15 text-signal-cyan'
+                                    : 'bg-white/5 text-text-muted'
+                                }`}
+                              >
+                                <Icon className="h-4 w-4" />
+                              </span>
+
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-bold text-text-primary">
+                                    {option.title}
+                                  </span>
+                                  {selected && (
+                                    <CheckCircle2 className="h-4 w-4 shrink-0 text-signal-cyan" />
+                                  )}
+                                </span>
+                                <span className="mt-1 block text-xs text-text-muted">
+                                  {option.subtitle}
+                                </span>
+                                <span className="mt-2 block text-[10px] leading-relaxed text-text-muted/80">
+                                  {option.description}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Preset generator */}
+                    {dataSourceType === 'preset' && (
+                      <div className={`${panelClass} space-y-4 p-4 sm:p-5`}>
+                        <div className="space-y-1.5">
+                          <label htmlFor="presetStudentCount" className={labelClass}>
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            Generated student batch
+                          </label>
+
+                          <select
+                            id="presetStudentCount"
+                            {...register('presetStudentCount')}
+                            className={inputClass}
+                          >
+                            <option value={50}>50 students — Small test</option>
+                            <option value={75}>75 students — Standard</option>
+                            <option value={100}>100 students — Medium</option>
+                            <option value={150}>150 students — Large</option>
+                            <option value={250}>250 students — Extra large</option>
+                            <option value={500}>500 students — Stress test</option>
+                          </select>
+
+                          <p className="text-[10px] text-text-muted">
+                            Choose a sample size for testing route performance.
+                          </p>
+                        </div>
+
+                        <div className="space-y-3 border-t border-white/10 pt-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold text-text-primary">
+                                Custom students
+                              </p>
+                              <p className="mt-1 text-[10px] text-text-muted">
+                                Optionally add known student locations.
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendStudent({ name: '', plusCode: '' })
+                              }
+                              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-xs text-signal-cyan transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Add student
+                            </button>
+                          </div>
+
+                          {studentFields.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-white/10 px-3 py-4 text-center">
+                              <Users className="mx-auto h-5 w-5 text-text-muted/60" />
+                              <p className="mt-2 text-xs text-text-muted">
+                                No custom students added.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {studentFields.map((field, index) => (
+                                <div
+                                  key={field.id}
+                                  className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] gap-2"
+                                >
+                                  <input
+                                    aria-label={`Student ${index + 1} name`}
+                                    {...register(`specificStudents.${index}.name` as const)}
+                                    placeholder="Student name"
+                                    className="w-full min-w-0 rounded-lg border border-white/10 bg-bg-panel px-2.5 py-2 text-xs text-text-primary focus:border-signal-cyan focus:outline-none"
+                                  />
+
+                                  <input
+                                    aria-label={`Student ${index + 1} Plus Code`}
+                                    {...register(`specificStudents.${index}.plusCode` as const)}
+                                    placeholder="Plus Code"
+                                    className="w-full min-w-0 rounded-lg border border-white/10 bg-bg-panel px-2.5 py-2 text-xs text-text-primary focus:border-signal-cyan focus:outline-none"
+                                  />
+
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove student ${index + 1}`}
+                                    onClick={() => removeStudent(index)}
+                                    className="flex items-center justify-center rounded-lg text-text-muted transition hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CSV upload */}
+                    {dataSourceType === 'csv' && (
+                      <div className={`${panelClass} space-y-4 p-4 sm:p-5`}>
+                        <div>
+                          <h4 className="text-sm font-semibold text-text-primary">
+                            Import student roster
+                          </h4>
+                          <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                            Upload a CSV or Excel file containing student names
+                            and home locations.
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl border border-dashed border-white/20 bg-white/[0.02] p-5 text-center transition hover:border-signal-cyan/50">
+                          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-route-blue/10 text-route-blue">
+                            <FileSpreadsheet className="h-5 w-5" />
+                          </div>
+
+                          <p className="mt-3 text-xs font-semibold text-text-primary">
+                            Choose your roster file
+                          </p>
+                          <p className="mt-1 text-[10px] text-text-muted">
+                            CSV, XLSX or XLS
+                          </p>
+
+                          <input
+                            id="uploadedFile"
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            {...register('uploadedFile')}
+                            onChange={(e) => {
+                              setValue('uploadedFile', e.target.files, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                              clearErrors('uploadedFile');
+                            }}
+                            className="mt-4 block w-full cursor-pointer text-xs text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-route-blue/20 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-route-blue hover:file:bg-route-blue/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan"
+                          />
+
+                          {watch('uploadedFile')?.[0] && (
+                            <div className="mt-3 flex items-center gap-2 rounded-lg border border-signal-cyan/20 bg-signal-cyan/5 p-2.5 text-left">
+                              <FileSpreadsheet className="h-4 w-4 shrink-0 text-signal-cyan" />
+                              <span className="min-w-0 flex-1 break-all text-xs text-text-primary">
+                                {watch('uploadedFile')[0].name}
+                              </span>
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-signal-cyan" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="rounded-xl bg-white/[0.03] p-3">
+                          <p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+                            Required columns
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <code className="rounded-md bg-white/5 px-2 py-1 text-[10px] text-signal-cyan">
+                              student_name
+                            </code>
+                            <code className="rounded-md bg-white/5 px-2 py-1 text-[10px] text-signal-cyan">
+                              home_plus_code
+                            </code>
+                          </div>
+                          <p className="mt-2 text-[10px] leading-relaxed text-text-muted">
+                            Ensure your column headers match these names. Actual
+                            file parsing and row validation must be handled by your
+                            upload-processing logic.
+                          </p>
+                        </div>
+
+                        <ErrorMessage
+                          message={
+                            typeof errors.uploadedFile?.message === 'string'
+                              ? errors.uploadedFile.message
+                              : undefined
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {/* Optimization objective */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>
+                          <Cpu className="h-4 w-4 text-bus-yellow" />
+                          Optimization objective
+                        </label>
+                        <p className="mt-1.5 text-xs text-text-muted">
+                          Select the primary goal for your route calculations.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        {objectives.map((objective) => {
+                          const Icon = objective.icon;
+                          const selected = optimizationGoal === objective.id;
+
+                          return (
+                            <label
+                              key={objective.id}
+                              className={`relative flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition focus-within:ring-2 focus-within:ring-signal-cyan sm:flex-col sm:items-center sm:gap-2 sm:p-4 sm:text-center ${
+                                selected
+                                  ? objective.selected
+                                  : 'border-white/10 bg-white/[0.02] text-text-muted hover:border-white/20 hover:bg-white/[0.04]'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                value={objective.id}
+                                {...register('optimizationGoal')}
+                                className="sr-only"
+                              />
+
+                              <Icon className="mt-0.5 h-5 w-5 shrink-0 sm:mt-0" />
+
+                              <span className="min-w-0 flex-1 sm:flex-none">
+                                <span className="block text-xs font-bold text-text-primary">
+                                  {objective.title}
+                                </span>
+                                <span className="mt-1 block text-[10px] leading-relaxed text-text-muted">
+                                  {objective.subtitle}
+                                </span>
+                              </span>
+
+                              {selected && (
+                                <CheckCircle2 className="h-4 w-4 shrink-0 text-signal-cyan sm:absolute sm:right-3 sm:top-3" />
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-start gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-signal-cyan" />
+                        <p className="text-xs leading-relaxed text-text-muted">
+                          {objectives.find((o) => o.id === optimizationGoal)?.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {submitError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-500/5 p-3 text-xs text-red-400"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {submitError}
+                  </div>
+                )}
+              </div>
+
+              {/* Persistent navigation footer */}
+              <div className="sticky bottom-0 z-20 border-t border-white/10 bg-bg-panel/95 px-5 py-4 backdrop-blur-xl sm:px-8">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    {step === 1 ? (
+                      <p className="text-[10px] leading-relaxed text-text-muted">
+                        <ShieldCheck className="mr-1 inline h-3.5 w-3.5 text-signal-cyan" />
+                        Configure your fleet to continue.
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStep(1);
+                          setSubmitError('');
+                        }}
+                        disabled={isSubmitting}
+                        className="inline-flex items-center gap-1.5 rounded-lg py-2 text-xs text-text-muted transition hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Edit fleet
+                      </button>
+                    )}
+                  </div>
+
+                  {step === 1 ? (
                     <button
                       type="button"
-                      onClick={() => setStep(1)}
-                      className="px-4 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-text-primary transition-all flex items-center gap-1.5"
+                      onClick={() => void goToStepTwo()}
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-route-blue via-blue-600 to-route-blue px-5 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-glow-blue transition hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan sm:px-6"
                     >
-                      <ArrowLeft className="w-3.5 h-3.5" /> Back
+                      Continue
+                      <ArrowRight className="h-4 w-4" />
                     </button>
-
+                  ) : (
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-route-blue via-signal-cyan to-route-blue hover:opacity-95 text-bg-grid font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-glow-cyan flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.98]"
+                      className="inline-flex min-w-0 shrink items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-route-blue via-blue-600 to-route-blue px-4 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-glow-blue transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-cyan sm:px-6"
                     >
                       {isSubmitting ? (
-                        <span className="flex items-center gap-2 font-mono text-xs text-white">
-                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          COMPUTING OPTIMAL TRAJECTORIES...
-                        </span>
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          <span>Processing…</span>
+                        </>
                       ) : (
                         <>
-                          Run Optimization Algorithm
-                          <Send className="w-3.5 h-3.5 text-bg-grid" />
+                          <span>Run optimization</span>
+                          <Send className="h-3.5 w-3.5 shrink-0" />
                         </>
                       )}
                     </button>
-                  </div>
-
+                  )}
                 </div>
-              )}
-
+              </div>
             </form>
           )}
         </div>
 
+        <p className="text-center text-[10px] leading-relaxed text-text-muted/70">
+          RouteCraft · Fleet configuration and route optimization sandbox
+        </p>
       </div>
     </section>
   );

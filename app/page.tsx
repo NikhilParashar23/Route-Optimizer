@@ -6,6 +6,7 @@ import { ProductsSection } from '@/components/ProductsSection';
 import { TestimonialsCarousel } from '@/components/TestimonialsCarousel';
 import { ContactForm } from '@/components/ContactForm';
 import { Footer } from '@/components/Footer';
+import { Features } from '@/components/Features';
 
 export default function HomePage() {
   return (
@@ -15,6 +16,9 @@ export default function HomePage() {
 
       {/* Centerpiece: 600-frame Canvas Scrollytelling Sequence */}
       <HeroSequence />
+
+      {/* {Features} */}
+      <Features />
 
       {/* Interactive District Demo Request Form */}
       <ContactForm />

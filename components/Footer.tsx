@@ -9,7 +9,9 @@ export const Footer = () => {
 
                 {/* 1. About Us */}
                 <div className="space-y-4">
-                    <h3 className="font-serif text-3xl tracking-tighter text-text-primary">ROUTEWISE</h3>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold text-text-primary tracking-tight">
+                        Route<span className="text-signal-cyan">Craft</span>
+                    </h2>
                     <p className="text-zinc-400 text-base leading-relaxed">
                         An autonomous district fleet operating system optimizing school transportation, real-time ridership, and turn-by-turn routing at scale.
                     </p>
