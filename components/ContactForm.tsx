@@ -55,6 +55,7 @@ const wizardSchema = z.object({
     z.object({
       name: z.string(),
       plusCode: z.string(),
+      landmark: z.string(),
     })
   ).optional(),
 
@@ -70,6 +71,17 @@ export function ContactForm() {
   const [isBusListOpen, setIsBusListOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+
+  const [generatedStudents, setGeneratedStudents] = useState<
+    Array<{
+      id: string;
+      name: string;
+      plusCode: string;
+      landmark: string;
+    }>
+  >([]);
+
+  const [rosterGenerated, setRosterGenerated] = useState(false);
 
   const {
     register,
@@ -117,15 +129,15 @@ export function ContactForm() {
 
   const dataSourceType = watch('dataSourceType');
   const optimizationGoal = watch('optimizationGoal');
-  const fleetSizeCount = watch('fleetSizeCount');
   const buses = watch('buses');
+  const presetStudentCount = watch('presetStudentCount');
 
   const totalSeats = (buses || []).reduce(
     (total, bus) => total + (Number(bus?.capacity) || 0),
     0
   );
 
-  // Keep the fleet count and generated bus list synchronized.
+  // Keep fleet count and generated bus list synchronized.
   const handleFleetCountChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -154,14 +166,12 @@ export function ContactForm() {
       id: currentBuses[index]?.id || String(index + 1),
       label:
         currentBuses[index]?.label || `Bus Unit #${index + 1}`,
-      capacity: currentBuses[index]?.capacity ?? (
-        index % 2 === 0 ? 40 : 30
-      ),
+      capacity:
+        currentBuses[index]?.capacity ??
+        (index % 2 === 0 ? 40 : 30),
     }));
 
     replaceBuses(newBuses);
-
-    // Show the list after the fleet count changes.
     setIsBusListOpen(true);
   };
 
@@ -180,13 +190,88 @@ export function ContactForm() {
     }
   };
 
+  const firstNames = [
+    'Aarav', 'Ananya', 'Rohan', 'Priya',
+    'Vihaan', 'Isha', 'Aditya', 'Saanvi',
+    'Arjun', 'Meera', 'Kabir', 'Aditi',
+    'Ishaan', 'Kavya', 'Reyansh', 'Diya',
+  ];
+
+  const lastNames = [
+    'Sharma', 'Patel', 'Gupta', 'Verma',
+    'Joshi', 'Deshmukh', 'Kulkarni', 'Shah',
+    'Pawar', 'Jadhav', 'Singh', 'Kale',
+  ];
+
+  const landmarks = [
+    'Near Ganpati Temple Gate',
+    'Kothrud Bus Stop',
+    'Shivaji Nagar Square',
+    'Kalyani Nagar Main Road',
+    'Hadapsar Market',
+    'Near City Library',
+    'Main Road Bus Shelter',
+    'Near Central Park',
+    'School Road Junction',
+    'Near Community Hall',
+    'Market Chowk',
+    'Railway Station Road',
+  ];
+
+  const plusCodePrefixes = [
+    '8J6V', '8J22', '8J4F', '8J6W', '7JXR',
+    '8J5P', '8JVM', '8J3K', '7JVP', '8J7R',
+  ];
+
+  const generateStudentRoster = () => {
+    const count = Number(getValues('presetStudentCount')) || 75;
+
+    const generated = Array.from({ length: count }, (_, index) => {
+      const first =
+        firstNames[Math.floor(Math.random() * firstNames.length)];
+
+      const last =
+        lastNames[Math.floor(Math.random() * lastNames.length)];
+
+      const prefix =
+        plusCodePrefixes[
+          Math.floor(Math.random() * plusCodePrefixes.length)
+        ];
+
+      const suffix = `${Math.floor(Math.random() * 9)}${
+        ['A', 'B', 'C', 'D', 'F', 'G', 'H', 'J', 'M', 'P', 'R', 'W'][
+          Math.floor(Math.random() * 12)
+        ]
+      }${Math.floor(Math.random() * 9)}${
+        ['X', 'Y', 'M', 'Q', 'R', 'W', 'C'][
+          Math.floor(Math.random() * 7)
+        ]
+      }`;
+
+      return {
+        id: `demo-${Date.now()}-${index}`,
+        name: `${first} ${last}`,
+        plusCode: `${prefix}+${suffix}`,
+        landmark:
+          landmarks[Math.floor(Math.random() * landmarks.length)],
+      };
+    });
+
+    setGeneratedStudents(generated);
+    setRosterGenerated(true);
+  };
+
   const onSubmit = async (data: WizardFormData) => {
     setIsSubmitting(true);
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      console.log('Optimized Routing Simulation Payload:', data);
+      console.log('Optimized Routing Simulation Payload:', {
+        ...data,
+        generatedStudents:
+          data.dataSourceType === 'preset' ? generatedStudents : [],
+      });
 
       setIsCompleted(true);
     } catch (error) {
@@ -200,6 +285,8 @@ export function ContactForm() {
     setIsCompleted(false);
     setStep(1);
     setIsBusListOpen(false);
+    setGeneratedStudents([]);
+    setRosterGenerated(false);
   };
 
   return (
@@ -207,16 +294,17 @@ export function ContactForm() {
       id="demo"
       className="relative w-full bg-bg-grid py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-t border-white/10 overflow-hidden"
     >
-      {/* Background glow - original theme preserved */}
+      {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-route-blue/15 via-signal-cyan/15 to-transparent rounded-full blur-[140px] pointer-events-none" />
 
-      <div className="max-w-3xl mx-auto relative z-10 space-y-6">
+      {/* UPDATED: Increased vertical spacing between header and card */}
+      <div className="max-w-3xl mx-auto relative z-10 space-y-10 sm:space-y-12">
 
         {/* Header */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-signal-cyan/10 border border-signal-cyan/20 text-signal-cyan text-[11px] font-mono tracking-widest uppercase shadow-glow-cyan/20">
             <Sparkles className="w-3.5 h-3.5" />
-            Spatial Solver Sandbox
+            Route Optimizer
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-heading font-extrabold text-text-primary tracking-tight leading-tight">
@@ -224,8 +312,8 @@ export function ContactForm() {
           </h2>
 
           <p className="text-sm sm:text-base text-text-muted max-w-xl mx-auto leading-relaxed">
-            Configure depot coordinates, set fleet capacities, import
-            student rosters, and launch Google OR-Tools spatial algorithms.
+            Set your depot location, enter vehicle passenger limits, upload
+            your student roster, and instantly calculate efficient daily routes.
           </p>
         </div>
 
@@ -233,7 +321,6 @@ export function ContactForm() {
         <div className="p-4 sm:p-8 rounded-3xl bg-bg-panel/85 border border-white/15 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
 
           {isCompleted ? (
-
             /* Completion Screen */
             <div className="py-8 text-center space-y-5 animate-in fade-in zoom-in-95 duration-300">
 
@@ -309,9 +396,7 @@ export function ContactForm() {
                 Reset &amp; New Simulation
               </button>
             </div>
-
           ) : (
-
             /* Two-Step Wizard */
             <form
               onSubmit={handleSubmit(onSubmit)}
@@ -321,10 +406,8 @@ export function ContactForm() {
 
               {/* Progress Header */}
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
-
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
-
                     <div
                       className={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-mono ${
                         step === 1
@@ -366,7 +449,7 @@ export function ContactForm() {
                 </span>
               </div>
 
-              {/* ================= STEP 1 ================= */}
+              {/* STEP 1 */}
               {step === 1 && (
                 <div className="space-y-4 animate-in fade-in duration-200">
 
@@ -438,9 +521,8 @@ export function ContactForm() {
                     )}
                   </div>
 
-                  {/* COLLAPSIBLE BUS CAPACITY SECTION */}
+                  {/* Collapsible Bus Capacity Section */}
                   <div className="space-y-2">
-
                     <button
                       type="button"
                       onClick={() => setIsBusListOpen((prev) => !prev)}
@@ -449,7 +531,6 @@ export function ContactForm() {
                       className="w-full flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 px-3 sm:px-4 py-3 transition-colors text-left"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-
                         <div className="w-9 h-9 rounded-lg bg-signal-cyan/10 flex items-center justify-center shrink-0">
                           <Bus className="w-4 h-4 text-signal-cyan" />
                         </div>
@@ -466,7 +547,6 @@ export function ContactForm() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-
                         <span className="text-[10px] font-mono text-signal-cyan bg-signal-cyan/10 border border-signal-cyan/20 px-2 py-1 rounded-full">
                           {isBusListOpen ? 'Hide buses' : 'Edit buses'}
                         </span>
@@ -489,7 +569,6 @@ export function ContactForm() {
                         </p>
 
                         <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-
                           {busFields.map((field, index) => (
                             <div
                               key={field.id}
@@ -546,12 +625,11 @@ export function ContactForm() {
                               )}
                             </div>
                           ))}
-
                         </div>
 
                         <p className="text-[10px] text-text-muted px-2">
-                          Each bus must have a unique identifier in your
-                          fleet and a capacity of 5–120 seats.
+                          Each bus must have a unique identifier in your fleet
+                          and a capacity of 5–120 seats.
                         </p>
                       </div>
                     )}
@@ -566,11 +644,10 @@ export function ContactForm() {
                     Save &amp; Continue
                     <ArrowRight className="w-4 h-4 text-signal-cyan" />
                   </button>
-
                 </div>
               )}
 
-              {/* ================= STEP 2 ================= */}
+              {/* STEP 2 */}
               {step === 2 && (
                 <div className="space-y-5 animate-in fade-in duration-200">
 
@@ -582,7 +659,6 @@ export function ContactForm() {
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
                       <button
                         type="button"
                         onClick={() =>
@@ -634,14 +710,12 @@ export function ContactForm() {
                           </p>
                         </div>
                       </button>
-
                     </div>
                   </div>
 
                   {/* Preset Configuration */}
                   {dataSourceType === 'preset' && (
                     <div className="space-y-3 p-4 rounded-2xl bg-white/[0.02] border border-white/10">
-
                       <div className="space-y-1.5">
                         <label
                           htmlFor="student-batch-size"
@@ -662,9 +736,78 @@ export function ContactForm() {
                         </select>
                       </div>
 
+                      {/* Generated Demo Roster */}
+                      <div className="space-y-3 pt-3 border-t border-white/10">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
+                              Generated Student Roster
+                            </p>
+                            <p className="text-[10px] text-text-muted mt-1">
+                              Random demo names, Plus Codes and pickup landmarks
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={generateStudentRoster}
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-signal-cyan/10 hover:bg-signal-cyan/20 text-[10px] font-mono text-signal-cyan border border-signal-cyan/20 transition-colors"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {rosterGenerated
+                              ? 'Regenerate Students'
+                              : `Generate ${presetStudentCount} Students`}
+                          </button>
+                        </div>
+
+                        {rosterGenerated && (
+                          <div className="rounded-xl border border-white/10 bg-bg-panel/70 overflow-hidden">
+                            <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/10 bg-white/[0.02]">
+                              <span className="text-xs font-semibold text-text-primary">
+                                Pickup Roster
+                              </span>
+                              <span className="text-[10px] font-mono text-signal-cyan">
+                                {generatedStudents.length} SAMPLE RECORDS
+                              </span>
+                            </div>
+
+                            <div className="max-h-72 overflow-y-auto divide-y divide-white/[0.07] custom-scrollbar">
+                              {generatedStudents.map((student, index) => (
+                                <div
+                                  key={student.id}
+                                  className="flex items-start gap-3 px-3 py-3 hover:bg-white/[0.025] transition-colors"
+                                >
+                                  <div className="w-7 h-7 shrink-0 rounded-lg bg-signal-cyan/10 border border-signal-cyan/20 flex items-center justify-center text-[10px] font-mono text-signal-cyan">
+                                    {String(index + 1).padStart(2, '0')}
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold text-text-primary break-words">
+                                      {student.name}
+                                    </p>
+
+                                    <p className="mt-1 text-[10px] text-text-muted flex items-start gap-1.5">
+                                      <MapPin className="w-3 h-3 shrink-0 mt-0.5 text-signal-cyan" />
+                                      {student.landmark}
+                                    </p>
+
+                                    <span className="inline-flex mt-2 rounded-md border border-signal-cyan/20 bg-signal-cyan/5 px-2 py-1 text-[10px] font-mono text-signal-cyan">
+                                      Plus Code: {student.plusCode}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <p className="px-3 py-2 text-[10px] text-text-muted border-t border-white/10">
+                              Demo data only · Scroll to view all generated students
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Optional Custom Students */}
                       <div className="space-y-2 pt-3 border-t border-white/10">
-
                         <div className="flex justify-between items-center gap-2">
                           <div>
                             <p className="text-[10px] font-mono text-text-muted uppercase">
@@ -678,7 +821,11 @@ export function ContactForm() {
                           <button
                             type="button"
                             onClick={() =>
-                              appendStudent({ name: '', plusCode: '' })
+                              appendStudent({
+                                name: '',
+                                plusCode: '',
+                                landmark: '',
+                              })
                             }
                             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-mono text-signal-cyan border border-white/10"
                           >
@@ -690,7 +837,7 @@ export function ContactForm() {
                         {studentFields.map((field, index) => (
                           <div
                             key={field.id}
-                            className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center"
+                            className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center"
                           >
                             <input
                               type="text"
@@ -705,6 +852,14 @@ export function ContactForm() {
                               aria-label={`Student ${index + 1} Plus Code`}
                               {...register(`specificStudents.${index}.plusCode` as const)}
                               placeholder="Home Plus Code"
+                              className="min-w-0 w-full px-2.5 py-2 rounded-lg bg-bg-panel border border-white/10 text-xs text-text-primary focus:outline-none focus:border-signal-cyan"
+                            />
+
+                            <input
+                              type="text"
+                              aria-label={`Student ${index + 1} landmark`}
+                              {...register(`specificStudents.${index}.landmark` as const)}
+                              placeholder="Landmark / stop"
                               className="min-w-0 w-full px-2.5 py-2 rounded-lg bg-bg-panel border border-white/10 text-xs text-text-primary focus:outline-none focus:border-signal-cyan"
                             />
 
@@ -725,7 +880,6 @@ export function ContactForm() {
                   {/* CSV Upload */}
                   {dataSourceType === 'csv' && (
                     <div className="space-y-3 p-5 rounded-2xl bg-white/[0.02] border border-dashed border-white/20 text-center">
-
                       <FileSpreadsheet className="w-8 h-8 text-route-blue mx-auto" />
 
                       <div className="space-y-1">
@@ -739,13 +893,9 @@ export function ContactForm() {
 
                       <p className="text-[10px] text-text-muted">
                         Required columns:{' '}
-                        <code className="text-signal-cyan">
-                          student_name
-                        </code>
+                        <code className="text-signal-cyan">student_name</code>
                         {' and '}
-                        <code className="text-signal-cyan">
-                          home_plus_code
-                        </code>
+                        <code className="text-signal-cyan">home_plus_code</code>
                       </p>
 
                       <input
@@ -765,7 +915,6 @@ export function ContactForm() {
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-
                       <label
                         className={`p-3 rounded-xl border text-center cursor-pointer transition-all flex sm:flex-col items-center justify-center gap-3 sm:gap-1 ${
                           optimizationGoal === 'fuel'
@@ -840,13 +989,11 @@ export function ContactForm() {
                           Better seat usage
                         </span>
                       </label>
-
                     </div>
                   </div>
 
                   {/* Navigation */}
                   <div className="flex gap-3 pt-2">
-
                     <button
                       type="button"
                       onClick={() => setStep(1)}
@@ -873,11 +1020,9 @@ export function ContactForm() {
                         </>
                       )}
                     </button>
-
                   </div>
                 </div>
               )}
-
             </form>
           )}
         </div>

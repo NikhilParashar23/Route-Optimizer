@@ -45,7 +45,7 @@ export function Header({ isHeroFinished }: HeaderProps) {
                 Route<span className="text-signal-cyan">Craft</span>
               </span>
               <span className="text-[9px] font-mono tracking-widest text-text-muted uppercase hidden sm:block">
-                Autonomous Fleet OS
+                Bus Route Optimizer
               </span>
             </div>
           </Link>

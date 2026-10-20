@@ -218,11 +218,11 @@ export function HeroSequence() {
             >
               <div className="space-y-2 max-w-3xl mx-auto flex flex-col items-center">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-signal-cyan text-xs font-mono tracking-wider uppercase">
-                  <Compass className="w-3.5 h-3.5" /> Chapter 02 · Ridership
+                  <Compass className="w-3.5 h-3.5" /> Chapter 02 · Spatial Mapping
                 </div>
 
                 <h2 className="text-3xl sm:text-4xl md:text-5xl font-heading font-bold text-text-primary tracking-tight">
-                  Real-time student ridership sync
+                  Mapping student loaction and identifying stops
                 </h2>
               </div>
             </div>
@@ -278,8 +278,8 @@ export function HeroSequence() {
             >
               <div className="space-y-4 max-w-2xl mx-auto flex flex-col items-center">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-signal-cyan text-xs font-mono tracking-wider uppercase shadow-glow-cyan/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-signal-cyan animate-pulse" />
-                  Autonomous Fleet OS
+                  {/* <span className="w-1.5 h-1.5 rounded-full bg-signal-cyan animate-pulse" />
+                  Autonomous Fleet OS */}
                 </div>
 
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-text-primary tracking-tight">
@@ -288,7 +288,7 @@ export function HeroSequence() {
 
                 <a
                   href="#optimizer"
-                  className="inline-flex items-center gap-2.5 px-7 py-3 rounded-xl bg-route-blue/90 hover:bg-route-blue border border-white/20 text-white font-heading font-bold text-sm tracking-wide shadow-glow-blue backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-200 mt-4 sm:mt-6 pointer-events-auto"
+                  className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-signal-cyan/10 hover:bg-signal-cyan/20 border border-signal-cyan/40 text-signal-cyan font-heading font-bold text-sm tracking-wide shadow-glow-cyan backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-200 mt-4 sm:mt-6 pointer-events-auto"
                 >
                   Start Optimization
                   <ArrowRight className="w-4 h-4" />

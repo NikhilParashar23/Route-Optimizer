@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Network, Cpu, ShieldCheck, MapPin } from 'lucide-react';
+import { Users, Bus, Sliders, Navigation } from 'lucide-react';
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -13,35 +13,35 @@ interface FeatureCardProps {
 
 const features = [
   {
-    icon: <Network className="w-6 h-6 text-signal-cyan" />,
-    title: 'Intelligent Cluster Resolution',
+    icon: <Users className="w-6 h-6 text-signal-cyan" />,
+    title: 'Student Location Mapping',
     description:
-      'Spatial clustering algorithms aggregate student locations into optimized pickup zones, minimizing walking distances and eliminating stop redundancy.',
-    tag: 'SPATIAL DBSCAN',
+      'Easily input student addresses and Google Plus Codes to accurately map every pickup location across the school district.',
+    tag: 'STUDENT DATA',
     glowColor: 'cyan' as const,
   },
   {
-    icon: <Cpu className="w-6 h-6 text-route-blue" />,
-    title: 'Automated Path Synthesis',
+    icon: <Bus className="w-6 h-6 text-route-blue" />,
+    title: 'Fleet Capacity Control',
     description:
-      'Advanced vehicle routing problem solvers construct non-overlapping bus itineraries based on passenger load constraints and time windows.',
-    tag: 'SOLVER ENGINE',
+      'Specify the total number of available buses and individual seating limits to ensure safe passenger loads for every vehicle.',
+    tag: 'FLEET SETUP',
     glowColor: 'blue' as const,
   },
   {
-    icon: <ShieldCheck className="w-6 h-6 text-signal-cyan" />,
-    title: 'Roster & Reregistration Sync',
+    icon: <Sliders className="w-6 h-6 text-signal-cyan" />,
+    title: 'Custom Stop Clustering',
     description:
-      'Directly sync passenger rosters from district databases or static imports, ensuring passenger count changes immediately recalculate route loads.',
-    tag: 'DATA INGESTION',
+      'Group nearby student homes into shared pickup stops based on your preferred optimization goals.',
+    tag: 'STOP GROUPING',
     glowColor: 'cyan' as const,
   },
   {
-    icon: <MapPin className="w-6 h-6 text-route-blue" />,
-    title: 'Multi-Vehicle Fleet OS',
+    icon: <Navigation className="w-6 h-6 text-route-blue" />,
+    title: 'Driver Route Guidance',
     description:
-      'Coordinate heterogenous bus fleets across single and multi-school bell times while maximizing vehicle capacity and reducing fuel usage.',
-    tag: 'DISTRICT FLEET',
+      'Generate optimized, non-overlapping travel paths and assign specific routes directly to drivers for efficient daily transit.',
+    tag: 'ROUTE DISPATCH',
     glowColor: 'blue' as const,
   },
 ];
