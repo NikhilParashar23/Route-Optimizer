@@ -24,7 +24,7 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'RouteWise | School Transportation & Fleet Optimization Platform',
+  title: 'RouteCraft | Connecting Points, Crafting Routes',
   description:
     'High-performance autonomous routing, live student telemetry, and multi-tier bell schedule optimization for modern school districts.',
   keywords: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     'district bus routing',
     'real-time ridership sync',
   ],
-  authors: [{ name: 'RouteWise Technologies' }],
+  authors: [{ name: 'RouteCraft Technologies' }],
   icons: {
     icon: '/favicon.ico',
   },
