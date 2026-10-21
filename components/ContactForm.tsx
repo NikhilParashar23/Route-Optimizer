@@ -312,8 +312,8 @@ export function ContactForm() {
           </h2>
 
           <p className="text-sm sm:text-base text-text-muted max-w-xl mx-auto leading-relaxed">
-            Set your depot location, enter vehicle passenger limits, upload
-            your student roster, and instantly calculate efficient daily routes.
+            Set your school location, enter bus capacity, upload
+            your student data, and instantly calculate optimized routes.
           </p>
         </div>
 
@@ -453,14 +453,14 @@ export function ContactForm() {
               {step === 1 && (
                 <div className="space-y-4 animate-in fade-in duration-200">
 
-                  {/* Depot Location */}
+                 {/* School Location */}
                   <div className="space-y-1.5">
                     <label
                       htmlFor="depot-location"
                       className="text-[11px] font-mono text-text-muted uppercase tracking-widest flex items-center gap-1.5"
                     >
                       <MapPin className="w-3.5 h-3.5 text-signal-cyan" />
-                      Central Depot Location
+                      School location
                     </label>
 
                     <input
@@ -468,14 +468,10 @@ export function ContactForm() {
                       type="text"
                       autoComplete="off"
                       {...register('locationInput')}
-                      placeholder="Plus Code or latitude, longitude"
+                      placeholder="e.g. 7JVM+W4 Amravati or 20.9320, 77.7523"
                       aria-invalid={!!errors.locationInput}
                       className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-text-primary placeholder:text-text-muted/40 focus:outline-none focus:border-signal-cyan focus:ring-1 focus:ring-signal-cyan transition-all"
                     />
-
-                    <p className="text-[10px] text-text-muted">
-                      Example: 7JVM+W4 Amravati or 20.9320, 77.7523
-                    </p>
 
                     {errors.locationInput && (
                       <p className="text-[11px] text-red-400 flex items-center gap-1">
@@ -484,7 +480,7 @@ export function ContactForm() {
                       </p>
                     )}
                   </div>
-
+                  
                   {/* Fleet Count */}
                   <div className="space-y-1.5">
                     <label
@@ -492,7 +488,7 @@ export function ContactForm() {
                       className="text-[11px] font-mono text-text-muted uppercase tracking-widest flex items-center gap-1.5"
                     >
                       <Bus className="w-3.5 h-3.5 text-bus-yellow" />
-                      Total Active Fleet
+                      Total Capacity
                     </label>
 
                     <div className="flex items-center gap-3">
@@ -564,9 +560,6 @@ export function ContactForm() {
                         id="bus-capacity-panel"
                         className="space-y-2 pl-2 border-l-2 border-signal-cyan/30 animate-in fade-in slide-in-from-top-1 duration-200"
                       >
-                        <p className="text-[10px] text-text-muted px-2 pt-1">
-                          Edit bus identifiers and seating capacities.
-                        </p>
 
                         <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                           {busFields.map((field, index) => (
@@ -626,11 +619,6 @@ export function ContactForm() {
                             </div>
                           ))}
                         </div>
-
-                        <p className="text-[10px] text-text-muted px-2">
-                          Each bus must have a unique identifier in your fleet
-                          and a capacity of 5–120 seats.
-                        </p>
                       </div>
                     )}
                   </div>

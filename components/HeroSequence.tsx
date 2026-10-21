@@ -159,7 +159,7 @@ export function HeroSequence() {
   const ch3 = getChapterOpacity(scrollProgress, 0.37, 0.42, 0.56, 0.62);
   const ch4 = getChapterOpacity(scrollProgress, 0.57, 0.62, 0.84, 0.90);
 
-  // Chapter 5: Fades in precisely at 91.72% (Frame ~1160 out of 1264)
+  // Chapter 5: Fades in precisely at 90.72%
   const ch5 = getChapterOpacity(scrollProgress, 0.9072, 0.9200, 0.9998, 0.9999);
 
   return (
@@ -179,7 +179,7 @@ export function HeroSequence() {
           className="absolute inset-0 w-full h-full object-contain pointer-events-none z-0"
         />
 
-        {/* Chapter Overlays Layer - Restored to original top-8 sm:top-12 */}
+        {/* Chapter Overlays Layer */}
         <div className="absolute top-8 sm:top-12 left-1/2 -translate-x-1/2 z-35 pointer-events-none w-[94%] max-w-7xl mx-auto flex flex-col items-center">
           <div className="relative w-full max-w-4xl mx-auto flex flex-col items-center">
             
@@ -222,7 +222,7 @@ export function HeroSequence() {
                 </div>
 
                 <h2 className="text-3xl sm:text-4xl md:text-5xl font-heading font-bold text-text-primary tracking-tight">
-                  Mapping student loaction and identifying stops
+                  Mapping student location and identifying stops
                 </h2>
               </div>
             </div>
@@ -267,7 +267,7 @@ export function HeroSequence() {
               </div>
             </div>
 
-            {/* CHAPTER 5 (Pushed lower independently using pt-28 sm:pt-40) */}
+            {/* CHAPTER 5 */}
             <div
               style={{
                 opacity: ch5.opacity,
@@ -277,20 +277,20 @@ export function HeroSequence() {
               className="absolute inset-x-0 top-0 flex flex-col items-center text-center transition-opacity duration-300 ease-out px-4 pt-16 sm:pt-24"
             >
               <div className="space-y-4 max-w-2xl mx-auto flex flex-col items-center">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-signal-cyan text-xs font-mono tracking-wider uppercase shadow-glow-cyan/20">
-                  {/* <span className="w-1.5 h-1.5 rounded-full bg-signal-cyan animate-pulse" />
-                  Autonomous Fleet OS */}
-                </div>
 
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-text-primary tracking-tight">
-                  Ready to compute your district&apos;s optimal paths?
+                  Smarter Routes. Smarter Decisions.
                 </h2>
+
+                <p className="text-sm sm:text-base text-text-muted max-w-md mx-auto leading-relaxed">
+                  Your optimized routes are just a few clicks away.
+                </p>
 
                 <a
                   href="#optimizer"
                   className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-signal-cyan/10 hover:bg-signal-cyan/20 border border-signal-cyan/40 text-signal-cyan font-heading font-bold text-sm tracking-wide shadow-glow-cyan backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-200 mt-4 sm:mt-6 pointer-events-auto"
                 >
-                  Start Optimization
+                  Start Optimizing
                   <ArrowRight className="w-4 h-4" />
                 </a>
               </div>

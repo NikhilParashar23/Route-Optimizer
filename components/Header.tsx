@@ -169,9 +169,6 @@ export function Header({ isHeroFinished }: HeaderProps) {
               <h3 className="text-2xl font-heading font-bold text-text-primary tracking-tight">
                 Sign in to <span className="text-signal-cyan">RouteCraft</span>
               </h3>
-              <p className="text-xs text-text-muted">
-                Enter your district credentials to access fleet telemetry.
-              </p>
             </div>
 
             {/* Sign In Form */}
