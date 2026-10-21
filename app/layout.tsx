@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk, Space_Mono } from 'next/font/google';
 import './globals.css';
 import { LenisProvider } from '@/components/LenisProvider';
+import "maplibre-gl/dist/maplibre-gl.css";
 
 const inter = Inter({
   subsets: ['latin'],
