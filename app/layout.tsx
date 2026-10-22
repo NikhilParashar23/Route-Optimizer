@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk, Space_Mono } from 'next/font/google';
 import './globals.css';
 import { LenisProvider } from '@/components/LenisProvider';
+import "maplibre-gl/dist/maplibre-gl.css";
 
 const inter = Inter({
   subsets: ['latin'],
@@ -23,7 +24,7 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'RouteWise | School Transportation & Fleet Optimization Platform',
+  title: 'RouteCraft | Connecting Points, Crafting Routes',
   description:
     'High-performance autonomous routing, live student telemetry, and multi-tier bell schedule optimization for modern school districts.',
   keywords: [
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
     'district bus routing',
     'real-time ridership sync',
   ],
-  authors: [{ name: 'RouteWise Technologies' }],
+  authors: [{ name: 'RouteCraft Technologies' }],
   icons: {
     icon: '/favicon.ico',
   },
