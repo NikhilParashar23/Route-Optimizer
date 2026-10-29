@@ -1,7 +1,0 @@
-{
-  "/results/page": "app/results/page.js",
-  "/page": "app/page.js",
-  "/driver/[tripId]/page": "app/driver/[tripId]/page.js",
-  "/track/[tripId]/page": "app/track/[tripId]/page.js",
-  "/api/[...path]/route": "app/api/[...path]/route.js"
-}
