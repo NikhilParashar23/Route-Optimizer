@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import {
-  ChevronDown, MapPin, Clock, Users, CheckCircle2, AlertTriangle, Fuel, Navigation,
+  ChevronDown, MapPin, Clock, Users, CheckCircle2, AlertTriangle, Fuel, Navigation,Share2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { colorForBus } from "@/lib/results/busPalette";
 
-export default function BusRouteCard({ bus, index, isSelected, onSelect, onViewDirections }) {
+export default function BusRouteCard({ bus, index, isSelected, onSelect, onViewDirections,onShareTrip }) {
   const [expanded, setExpanded] = useState(false);
   const color = colorForBus(index);
   const stops = bus.stops || [];
@@ -76,6 +76,17 @@ export default function BusRouteCard({ bus, index, isSelected, onSelect, onViewD
           <Navigation size={14} />
           View directions
         </button>
+        <button
+  type="button"
+  onClick={(e) => {
+    e.stopPropagation();
+    onShareTrip?.(bus);
+  }}
+  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
+>
+  <Share2 size={14} />
+  Share trip
+</button>
       </div>
 
       <AnimatePresence initial={false}>

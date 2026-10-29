@@ -6,13 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { colorForBus } from "@/lib/results/busPalette";
 import { splitPath } from "@/lib/results/navigation";
 
-/*
- * WHY THIS LINE EXISTS
- * maplibre-gl 6.x loads its web worker from a separate file and only finds it
- * on its own when import.meta.url is an http(s) URL. Under Next.js it isn't,
- * so the map silently never renders. The file is copied into /public by
- * scripts/copy-maplibre-worker.js.
- */
+
 const WORKER_PATH = "/maplibre-gl-worker.js";
 
 if (typeof window !== "undefined") {
@@ -271,6 +265,8 @@ export default function MapView({
   navigationBus = null,
   nav = null,
   focusStep = null,
+  livePosition = null,
+  showSummary = true,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -278,8 +274,10 @@ export default function MapView({
   const markersRef = useRef([]);
   const navStopMarkersRef = useRef([]);
   const vehicleRef = useRef(null);
+  const liveVehicleRef = useRef(null);
   const navRef = useRef(nav);
   const appliedThemeRef = useRef("dark");
+  const fitKeyRef = useRef("");
 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapTheme, setMapTheme] = useState("dark");
@@ -394,10 +392,13 @@ export default function MapView({
       navStopMarkersRef.current = [];
       vehicleRef.current?.remove();
       vehicleRef.current = null;
+      liveVehicleRef.current?.remove();
+liveVehicleRef.current = null;
       map.remove();
       mapRef.current = null;
       loadedRef.current = false;
       appliedThemeRef.current = "dark";
+      fitKeyRef.current = "";
       setMapLoaded(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -488,7 +489,11 @@ export default function MapView({
     }
 
     // While navigating, only the school is drawn here.
-    if (navigationBus) return;
+        // While navigating, only the school is drawn here.
+    if (navigationBus) {
+      fitKeyRef.current = ""; // refit when navigation closes
+      return;
+    }
 
     students.forEach((student) => {
       const position = getLatLng(student);
@@ -537,10 +542,19 @@ export default function MapView({
       );
     });
 
-    if (allPoints.length > 0) {
-      const bounds = new maplibregl.LngLatBounds();
-      allPoints.forEach((point) => bounds.extend([point.lng, point.lat]));
-      map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 700 });
+        if (allPoints.length > 0) {
+      const fitKey = allPoints
+        .map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`)
+        .join("|");
+
+      // Only auto-fit when the set of points actually changed, so a
+      // user's manual zoom/pan is left alone.
+      if (fitKeyRef.current !== fitKey) {
+        fitKeyRef.current = fitKey;
+        const bounds = new maplibregl.LngLatBounds();
+        allPoints.forEach((point) => bounds.extend([point.lng, point.lat]));
+        map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 700 });
+      }
     }
   }, [mapLoaded, school, students, pickupPoints, buses, allPoints, navigationBus]);
 
@@ -738,42 +752,89 @@ export default function MapView({
       });
   }, [mapLoaded, navigationBus, nav?.stopsDone, navColor]);
 
-  /* ---- 9. Navigation: moving vehicle + follow camera ------------------- */
+  /* ---- 9. Navigation: vehicle marker + follow camera ------------------- */
+useEffect(() => {
+  const map = mapRef.current;
+  if (!map || !mapLoaded) return;
+
+  if (!navigationBus || !Number.isFinite(vehicleLat) || !Number.isFinite(vehicleLng)) {
+    vehicleRef.current?.remove();
+    vehicleRef.current = null;
+    return;
+  }
+
+  if (!vehicleRef.current) {
+    vehicleRef.current = new maplibregl.Marker({
+      element: makeVehicleElement(navColor),
+      anchor: "center",
+      rotationAlignment: "map",
+    })
+      .setLngLat([vehicleLng, vehicleLat])
+      .addTo(map);
+  }
+
+  vehicleRef.current
+    .setLngLat([vehicleLng, vehicleLat])
+    .setRotation(Number(vehicleBearing) || 0);
+
+  if (nav?.follow) {
+    map.easeTo({ center: [vehicleLng, vehicleLat], duration: 300, essential: true });
+  }
+}, [mapLoaded, navigationBus, vehicleLat, vehicleLng, vehicleBearing, nav?.follow, navColor]);
+
+ 
+  /* ---- 9b. Parent tracking: live bus marker --------------------------- */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    const hasPosition =
-      navigationBus && Number.isFinite(vehicleLat) && Number.isFinite(vehicleLng);
+    const position = getLatLng(livePosition);
 
-    if (!hasPosition) {
-      vehicleRef.current?.remove();
-      vehicleRef.current = null;
+    if (!position) {
+      liveVehicleRef.current?.remove();
+      liveVehicleRef.current = null;
       return;
     }
 
-    if (!vehicleRef.current) {
-      vehicleRef.current = new maplibregl.Marker({
-        element: makeVehicleElement(navColor),
+    if (!liveVehicleRef.current) {
+      const markerElement = makeVehicleElement("#22d3ee");
+      markerElement.title = "Live bus location";
+
+      const popup = new maplibregl.Popup({
+        offset: 22,
+        closeButton: true,
+      }).setDOMContent(
+        makePopup("Live bus location", [
+          ["Latitude", position.lat.toFixed(6)],
+          ["Longitude", position.lng.toFixed(6)],
+          ["Status", livePosition?.status ?? "Unknown"],
+          ["Accuracy", livePosition?.accuracy != null
+            ? `${Math.round(livePosition.accuracy)} m`
+            : undefined],
+        ])
+      );
+
+      liveVehicleRef.current = new maplibregl.Marker({
+        element: markerElement,
         anchor: "center",
         rotationAlignment: "map",
-        pitchAlignment: "map",
       })
-        .setLngLat([vehicleLng, vehicleLat])
+        .setLngLat([position.lng, position.lat])
+        .setPopup(popup)
         .addTo(map);
     }
 
-    vehicleRef.current.setLngLat([vehicleLng, vehicleLat]).setRotation(vehicleBearing);
-
-    if (nav?.follow) {
-      map.easeTo({
-        center: [vehicleLng, vehicleLat],
-        zoom: Math.max(map.getZoom(), 17),
-        duration: 250,
-        essential: true,
-      });
-    }
-  }, [mapLoaded, navigationBus, vehicleLat, vehicleLng, vehicleBearing, nav?.follow, navColor]);
+    liveVehicleRef.current
+      .setLngLat([position.lng, position.lat])
+      .setRotation(Number(livePosition?.bearing ?? 0));
+  }, [
+    mapLoaded,
+    livePosition?.lat,
+    livePosition?.lng,
+    livePosition?.bearing,
+    livePosition?.status,
+    livePosition?.accuracy,
+  ]);
 
   /* ---- 10. Fit the whole route when navigation opens ------------------- */
   useEffect(() => {
@@ -877,7 +938,7 @@ export default function MapView({
       </div>
 
       {/* Selected bus summary */}
-      {selectedBus && !navigationBus && (
+      {showSummary && selectedBus && !navigationBus && (
         <div className="absolute left-3 top-3 z-10 w-[min(280px,calc(100%-24px))] rounded-2xl border border-white/10 bg-bg-panel/90 p-4 text-text-primary shadow-2xl backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <span

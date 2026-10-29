@@ -39,10 +39,13 @@ from services.vrp_solver import solve_vrp, InfeasibleRoutingError
 from services.route_builder import build_bus_routes
 from upload_routes import upload_bp
 
+from trip_routes import trips_bp
+
 app = Flask(__name__)
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB uploads
 app.register_blueprint(upload_bp)
+app.register_blueprint(trips_bp)
 
 def assign_smallest_suitable_buses(vrp_routes, demands, fleet):
     """

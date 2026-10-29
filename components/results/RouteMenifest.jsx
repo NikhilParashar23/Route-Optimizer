@@ -1,12 +1,13 @@
-import { ClipboardList } from "lucide-react";
-import BusRouteCard from "./BusRouteCard"; // adjust: e.g. "../BusRouteCard"
 
-// Bus cards laid out three per row on desktop (2 on tablets, 1 on phones).
+import { ClipboardList } from "lucide-react";
+import BusRouteCard from "./BusRouteCard";
+
 export default function RouteManifest({
   buses = [],
   selectedBusIndex,
   setSelectedBusIndex,
   onViewDirections,
+  onShareTrip,
 }) {
   return (
     <section>
@@ -16,9 +17,10 @@ export default function RouteManifest({
             <ClipboardList size={15} className="text-amber" />
             ROUTE MANIFEST
           </div>
+
           <p className="mt-1 text-xs text-ink-muted">
             {buses.length > 0
-              ? "Select a route or view directions for a bus."
+              ? "Select a route, view directions, or share a trip."
               : "Bus route sheets will appear here."}
           </p>
         </div>
@@ -32,8 +34,9 @@ export default function RouteManifest({
               bus={bus}
               index={idx}
               isSelected={selectedBusIndex === idx}
-              onSelect={setSelectedBusIndex}
+              onSelect={() => setSelectedBusIndex(idx)}
               onViewDirections={() => onViewDirections?.(bus)}
+              onShareTrip={() => onShareTrip?.(bus)}
             />
           ))}
         </div>
@@ -42,6 +45,7 @@ export default function RouteManifest({
           <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-panel-border text-ink-faint">
             🚌
           </div>
+
           <p className="text-xs leading-relaxed text-ink-muted">
             No routes generated yet. Configure your constraints and run the
             optimizer.
