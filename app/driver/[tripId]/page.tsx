@@ -224,15 +224,15 @@ export default function DriverPage() {
 
       <section className="relative h-[65vh] min-h-[420px] overflow-hidden rounded-2xl border border-white/10">
         <MapView
-          school={trip.school}
-          students={[]}
-          pickupPoints={bus.stops ?? []}
-          buses={[bus]}
-          selectedBusIndex={0}
-          navigationBus={bus}
-          nav={nav}
-          focusStep={focusStep}
-        />
+       school={trip.school}
+       students={[]}
+       pickupPoints={bus.stops ?? []}
+       buses={[bus]}
+       selectedBusIndex={0}
+       navigationBus={bus}
+       nav={nav}
+       focusStep={focusStep}
+     />
 
         <NavigationPanel
           bus={bus}
