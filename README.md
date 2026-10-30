@@ -4,6 +4,17 @@
 
 RouteCraft also supports **shareable driver and parent links**, allowing drivers to navigate assigned routes and parents to track bus locations live on a map.
 
+## Live Deployment
+
+| Part | Platform | URL |
+|---|---|---|
+| Frontend (Next.js) | Vercel | `https://<your-project>.vercel.app` |
+| Backend (Flask API) | Render | https://route-optimizer-backend-0by4.onrender.com |
+
+Health check: https://route-optimizer-backend-0by4.onrender.com/api/health
+
+> **Note:** The backend runs on Render's free tier, which puts the service to sleep when idle. The first request after a period of inactivity can take 30–60 seconds while it wakes up.
+
 ## Features
 
 ### Route Optimization
@@ -45,6 +56,7 @@ RouteCraft also supports **shareable driver and parent links**, allowing drivers
 | Route Optimization | Google OR-Tools |
 | Road Network | OpenStreetMap, OSRM |
 | Geocoding | Open Location Codes (Plus Codes), address geocoding |
+| Hosting | Vercel (frontend), Render (backend) |
 
 ## Project Structure
 
@@ -76,11 +88,12 @@ Route-Optimizer/
 │   └── requirements.txt
 ├── public/                  # Static assets and map worker
 ├── scripts/                 # Build utility scripts
+├── next.config.mjs          # Next.js config (API rewrite to backend)
 ├── package.json
 └── README.md
 ```
 
-## Getting Started
+## Getting Started (Local Development)
 
 ### Prerequisites
 
@@ -148,11 +161,17 @@ If the map does not load, verify that `http://localhost:3000/maplibre-gl-worker.
 
 ### Frontend Environment
 
-Create a `.env.local` file in the project root if you need to configure the backend URL:
+The frontend reads the backend address from `NEXT_PUBLIC_API_URL`. Requests to `/api/*` are forwarded to that address by the rewrite rule in `next.config.mjs`, so the browser only talks to the frontend's own origin and no CORS setup is needed for those calls.
+
+For local development, create a `.env.local` file in the project root:
 
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:5001
 ```
+
+If the variable is not set, the frontend falls back to `http://localhost:5000`.
+
+For production, set it to the deployed backend URL (see [Deployment](#deployment)). Do not include a trailing slash.
 
 ### Backend Configuration
 
@@ -196,22 +215,76 @@ The `home_plus_code` column is also supported. Short Plus Codes are completed re
 
 | Method | Endpoint | Description |
 |---|---|---|
+| GET | `/api/trips/<tripId>/driver` | Retrieve full trip details for the driver (requires `X-Trip-Token` header) |
+| POST | `/api/trips/<tripId>/location` | Report live GPS coordinates (requires `X-Trip-Token` header) |
 | GET | `/api/trips/<tripId>/public?t=<token>` | Retrieve trip details for parent tracking |
 | GET | `/api/trips/<tripId>/live?t=<token>` | Retrieve the latest bus location and status |
-| Driver location update | See `backend/trip_routes.py` | Report live GPS coordinates |
 
 The exact request formats and additional endpoints are defined in the backend source code.
 
 ## Deployment
 
-- **Frontend:** Deploy to Vercel or another platform supporting Next.js.
-- **Backend:** Deploy Flask using a production server such as Gunicorn.
-- **API connectivity:** Configure the frontend proxy or backend URL appropriately.
-- **Live tracking:** Use HTTPS for browser GPS access on mobile devices.
-- **Trip persistence:** Use a persistent database or shared storage for trip details, tokens, and live positions.
-- **Map worker:** Ensure the MapLibre worker is copied into the public directory during deployment.
+RouteCraft is deployed as two separate services: the Flask backend on **Render** and the Next.js frontend on **Vercel**. Deploy the backend first, because the frontend needs its URL.
 
-For local demonstrations, an HTTPS tunnel can expose the application temporarily. Such links may stop working when the tunnel closes or its URL changes.
+### Backend on Render
+
+1. Push the repository to GitHub.
+2. In Render, create a new **Web Service** and connect the repository.
+3. Set the **Root Directory** to `backend`.
+4. Set the **Build Command**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+5. Set the **Start Command** to a production server such as Gunicorn (make sure `gunicorn` is listed in `backend/requirements.txt`):
+   ```bash
+   gunicorn app:app
+   ```
+6. Add any backend environment variables (for example, the OSRM endpoint) in the Render dashboard.
+7. Deploy and verify the health endpoint:
+   ```text
+   https://route-optimizer-backend-0by4.onrender.com/api/health
+   ```
+
+### Frontend on Vercel
+
+1. In Vercel, choose **New Project** and import the GitHub repository.
+2. Keep the **Application Preset** as **Next.js** and the **Root Directory** as `./`.
+3. Add this environment variable for **Production and Preview**:
+
+   | Key | Value |
+   |---|---|
+   | `NEXT_PUBLIC_API_URL` | `https://route-optimizer-backend-0by4.onrender.com` |
+
+4. Click **Deploy**. The build runs `npm run prebuild` (copies the MapLibre worker into `public/`) and then `next build`.
+
+After the first deployment, any push to `main` triggers an automatic redeploy on Vercel (and on Render, if auto-deploy is enabled).
+
+### How the Two Services Connect
+
+- The browser calls `/api/*` on the Vercel domain.
+- `next.config.mjs` rewrites those requests to `NEXT_PUBLIC_API_URL`, which points to the Render backend.
+- Driver and parent links use the Vercel domain, for example `/driver/<tripId>?t=<token>` and `/track/<tripId>?t=<token>`.
+
+### Deployment Notes
+
+- **Cold starts:** Render's free tier sleeps after inactivity. Open the health endpoint before a demo to wake the service up.
+- **Live tracking:** Use HTTPS for browser GPS access on mobile devices. Vercel provides HTTPS by default.
+- **Trip persistence:** Trip details, tokens, and live positions must be stored in a persistent database or shared storage. If the backend stores them in memory or on local disk, they are lost whenever Render restarts or redeploys the service, and existing driver and parent links will stop working.
+- **Multiple workers:** If Gunicorn runs more than one worker, in-memory trip data is not shared between them. Use a single worker or shared storage.
+- **Map worker:** The MapLibre worker is copied into `public/` by the `prebuild` script during the Vercel build.
+- **Type checking:** The Next.js config currently sets `typescript.ignoreBuildErrors` and `eslint.ignoreDuringBuilds` so type and lint errors do not block deployment. Fixing the underlying errors and removing these options is recommended.
+
+### Troubleshooting
+
+| Problem | What to check |
+|---|---|
+| Vercel build fails | Open the build log, scroll to the last lines, and read the first error. Run `npm run build` locally to reproduce it. |
+| API requests return 404 | Confirm `NEXT_PUBLIC_API_URL` is set in Vercel and the rewrite in `next.config.mjs` is present. Redeploy after changing environment variables. |
+| First request is very slow | The Render free service is waking up. Wait up to a minute and retry. |
+| Trip link says it cannot load | Check that the link includes the `?t=<token>` parameter and that the backend still has the trip stored. |
+| Map does not load | Verify `/maplibre-gl-worker.js` is served from the deployed site. |
+
+For local demonstrations without deploying, an HTTPS tunnel can expose the application temporarily. Such links may stop working when the tunnel closes or its URL changes.
 
 ## Future Scope
 
@@ -224,12 +297,12 @@ For local demonstrations, an HTTPS tunnel can expose the application temporarily
 ## Team
 
 Built with ❤️ by the RouteCraft team
-| Name | 
-|---|
-| Harshit Singh |
-| Nikhil Parashar |
-| Snigdha Raibagkar |
 
+| Name |
+|---|
+| Snigdha Raibagkar |
+| Nikhil Parashar |
+| Harshit Singh |
 
 ## Acknowledgements
 
